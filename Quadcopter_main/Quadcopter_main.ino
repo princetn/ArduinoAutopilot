@@ -131,10 +131,22 @@ void loop() {
 
   // 5) apply result to current 4pwm throttle of 4 motors (4servo objs).
 
-  // M1_throttle = ch3 + pitch_PID + 0         + yaw_PID>0?:yaw_PID:0
-  // M2_throttle = ch3 + 0         + roll_PID  + yaw_PID<0?:-yaw_PID:0
-  // M3_throttle = ch3 - pitch_PID + 0         + yaw_PID<0?:-yaw_PID:0
-  // M4_throttle = ch3 + 0         - roll_PID + yaw_PID>0?:yaw_PID:0
+  unsigned int M1_throttle = ch[2] + pitch_pid + 0         + yaw_pid>0?yaw_pid:0;
+  unsigned int M2_throttle = ch[2] + 0         + roll_pid  + yaw_pid<0?-yaw_pid:0;
+  unsigned int M3_throttle = ch[2] - pitch_pid + 0         + yaw_pid<0?-yaw_pid:0;
+  unsigned int M4_throttle = ch[2] + 0         - roll_pid + yaw_pid>0?yaw_pid:0;
+
+  // clamp the throttles
+  M1_throttle = M1_throttle>2000?2000:M1_throttle;
+  M1_throttle = M1_throttle<1000?1000:M1_throttle;
+  M2_throttle = M2_throttle>2000?2000:M1_throttle;
+  M2_throttle = M1_throttle<1000?1000:M1_throttle;
+  M3_throttle = M3_throttle>2000?2000:M1_throttle;
+  M3_throttle = M3_throttle<1000?1000:M1_throttle;
+  M4_throttle = M4_throttle>2000?2000:M1_throttle;
+  M4_throttle = M4_throttle<1000?1000:M1_throttle;
+
+  
   if(millis()> tm+Dtm)
   {
     if(rctoCommand.urgentMotorKill(ch[5]))// channel 6 of RC kills motors when switch is below 1500.
@@ -147,10 +159,10 @@ void loop() {
     }
     else
     {
-      s1.writeMicroseconds(ch[2]);
-      s2.writeMicroseconds(ch[2]);
-      s3.writeMicroseconds(ch[2]);
-      s4.writeMicroseconds(ch[2]);
+      s1.writeMicroseconds(M1_throttle);
+      s2.writeMicroseconds(M2_throttle);
+      s3.writeMicroseconds(M3_throttle);
+      s4.writeMicroseconds(M4_throttle);
     }
     
     
