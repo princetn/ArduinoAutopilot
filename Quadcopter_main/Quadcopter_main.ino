@@ -5,6 +5,7 @@
 #include <Servo.h>
 #include "PIDController.h"
 #include "RCtoCommand.h"
+#include "Sensors/HMC5883.h"
 
 
 
