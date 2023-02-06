@@ -1,3 +1,8 @@
+// Author: Amir Gasmi <argasmi@gmail.com>
+// Date: Feb 4, 2023
+// purpose: This class is designed to provide a basic compass for for the HMC5883. 
+//          for the Arduino board.
+
 #pragma once
 #include <math.h>
 #include <Arduino.h>
@@ -5,7 +10,7 @@
 
 
 #define MPU6050_I2C 0x68
-#define HMC5883_I2C  0x0D
+#define HMC5883_I2C  0x1E
 
 #define RadToDeg 57.29578f
 
@@ -57,12 +62,13 @@ namespace Sensors
         float _x = 0;
         float _y = 0;
         float _z = 0;
+        float _yaw = 0;
         const int gain = 1090;
 
         int _defaults[3][2]  = //{{-1019, 165}, {-251, 253}, {-550, 1021}};
                 //{{-1013, 509}, {-241, 247}, {-762, 836}};
                 {{-1271, 301}, {-600, 873}, {-251, 254}};
-        bool _cal = false;
+        
         int _offset[3]={0};
         float _scale[3]={0};
 

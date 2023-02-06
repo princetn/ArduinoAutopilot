@@ -31,11 +31,11 @@ void RC::PPMReader::Start()
 
 unsigned int *RC::PPMReader::read()
 {
-    int k=n;
+    int k=buffer_size;
     bool found = false;
     reading = true; // syncronization of interrupt copying
 
-      for(int ii = 0; ii < n; ii++)
+      for(int ii = 0; ii < buffer_size; ii++)
       {
           if(_ch1[ii]> 5000){
           k = ii;
@@ -51,7 +51,7 @@ unsigned int *RC::PPMReader::read()
       if(found)
       {
         
-        for(int ii =k+1;ii <n && ii-k-1<6 ; ii++)
+        for(int ii =k+1;ii <buffer_size && ii-k-1<6 ; ii++)
         {
             if(_ch1[ii] <=2050 && _ch1[ii] >950)
             _ch[(ii-k-1)] = _ch1[ii]; 
@@ -76,14 +76,14 @@ void RC::PPMReader::_Iread_ppm()
     _b=_a;        // 
     x[i]=c;     //storing n value in   array
     i=i+1;
-    if(i ==n)
+    if(i ==buffer_size)
     { 
         i = 0; 
         
         if(!reading)
         {
           
-          for(int ii =0; ii <n; ii++)
+          for(int ii =0; ii <buffer_size; ii++)
           {
               _ch1[ii] = x[ii];
           }
@@ -96,8 +96,7 @@ RC::PPMReader* RC::PPMReader::_ppmReader = nullptr;
 unsigned long RC::PPMReader::_a = 0;
 unsigned long RC::PPMReader::_b = 0;
 unsigned char RC::PPMReader::i = 0;
-unsigned int RC::PPMReader::_ch1[n];
-unsigned int RC::PPMReader::x[n];
+unsigned int RC::PPMReader::_ch1[buffer_size];
+unsigned int RC::PPMReader::x[buffer_size];
 unsigned int RC::PPMReader::_ch[6];
 bool RC::PPMReader::reading = false;
-

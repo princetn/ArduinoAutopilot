@@ -30,7 +30,7 @@ void Control::PID::setRange(int min, int max)
 
 int Control::PID::compensate(float desired, float current, float dt)
 {
-    float ep = desired - current;
+    float ep = round(desired - current);
     float ed = (ep-_ep0)/ dt;
     _ep0 = ep;
 

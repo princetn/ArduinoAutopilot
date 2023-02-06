@@ -8,7 +8,7 @@
 // PPM signal must be connected to this PIN for 
 // Arduino UNO.
 #define InterruptPin 2
-#define n 13 // number of readings before transfering data for processing (data frame)
+#define buffer_size 13 // number of readings before transfering data for processing (data frame)
 
 namespace RC
 {
@@ -43,8 +43,8 @@ namespace RC
         private:
         static unsigned long _a;
         static unsigned long _b;
-        static unsigned int x[n];
-        static unsigned int _ch1[n];
+        static unsigned int x[buffer_size];
+        static unsigned int _ch1[buffer_size];
         static unsigned int _ch[6];
         static unsigned char i;
         static PPMReader* _ppmReader;

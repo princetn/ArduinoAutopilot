@@ -1,3 +1,8 @@
+// Author: Amir Gasmi <argasmi@gmail.com>
+// Date: Feb 4, 2023
+// purpose: This class is designed to provide a basic compass for for the HMC5883. 
+//          for the Arduino board.
+
 #include "HMC5883.h"
 
 Sensors::HMC5883::HMC5883()
@@ -21,10 +26,10 @@ void Sensors::HMC5883::setup(void)
 
     {
         // power management
-        Wire.beginTransmission(MPU6050_I2C);          // Start the communication by using address of MPU
-        Wire.write(0x6B);                           // Access the power management register
-        Wire.write(0b00000000);                     // Set sleep = 0
-        Wire.endTransmission();                     // End the communication
+//        Wire.beginTransmission(MPU6050_I2C);          // Start the communication by using address of MPU
+//        Wire.write(0x6B);                           // Access the power management register
+//        Wire.write(0b00000000);                     // Set sleep = 0
+//        Wire.endTransmission();                     // End the communication
         
         Wire.beginTransmission(MPU6050_I2C);
         Wire.write(0x6A);
@@ -170,7 +175,7 @@ void Sensors::HMC5883::compute_offsets_scales(void)
     {
         _scale[i] = scalexyz/(float)rng[i];
         Serial.print("scale[i]=");
-        Serial.println(scale[i]);
+        Serial.println(_scale[i]);
     }
    
 }
@@ -191,6 +196,6 @@ void Sensors::HMC5883::processData(void)
 
 float Sensors::HMC5883::getYaw(float pitch, float roll)
 {
-    _yaw = RadToDeg * atan2(-y, x);
+    _yaw = RadToDeg * atan2(-_y, _x);
     return _yaw;
 }
