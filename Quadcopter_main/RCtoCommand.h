@@ -46,6 +46,16 @@ class RCtoCommand
     /// @return True: kill motors regarless of other channels values. False: normal operation.
     bool urgentMotorKill(unsigned int v);
 
+    /// @brief used to tune the PID control value through channel 5 of radio.
+    /// @param  
+    /// @return returns the mapped value from channel 1000-2000 to a smaller range.
+    float getPIDTune(unsigned int v);
+
+
+    
+
+    
+
 
 
 

@@ -63,3 +63,10 @@ bool RCtoCommand::urgentMotorKill(unsigned int v)
 {
     return v < 1500?true:false;
 }
+
+float RC::RCtoCommand::getPIDTune(unsigned int v)
+{
+    const float v1 = 0.0f;
+    const float v2 = 100.0f;
+    return ((float)v - 1000.0f)*(v2-v1)/1000.0f + v1;
+}

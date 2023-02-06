@@ -25,6 +25,15 @@ namespace Control
         /// @param dt delta time
         /// @return control throttle output.
         int compensate(float desired, float current, float dt);
+        /// @brief Resets the PID coefficients.
+        /// @param kp 
+        /// @param ki 
+        /// @param kd 
+        void setPID(float kp, float ki, float kd);
+        /// @brief Resets the integrator error to zero when motors are at rest so the value does not keep on creeping.
+        /// @param  
+        void resetIntegrator(void);
+
         private:
         float _kp;
         float _ki;

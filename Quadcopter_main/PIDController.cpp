@@ -30,7 +30,7 @@ void Control::PID::setRange(int min, int max)
 
 int Control::PID::compensate(float desired, float current, float dt)
 {
-    float ep = round(desired - current);
+    float ep = desired - current;
     float ed = (ep-_ep0)/ dt;
     _ep0 = ep;
 
@@ -52,4 +52,16 @@ int Control::PID::compensate(float desired, float current, float dt)
     
 
     return r;
+}
+
+void Control::PID::setPID(float kp, float ki, float kd)
+{
+    _kp = kp;
+    _ki = ki;
+    _kd = kd;
+}
+
+void Control::PID::resetIntegrator(void)
+{
+    _ei = 0.0;
 }

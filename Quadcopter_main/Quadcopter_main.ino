@@ -57,7 +57,9 @@ Sensors::HMC5883 compass;
 auto ppmReader = RC::PPMReader::getInstance();
 RC::RCtoCommand rctoCommand;
 Servo s1, s2, s3, s4;
-Control::PID pid_roll(5,1,0.5), pid_pitch(5,1,0.5), pid_altitude(250,150,50), pid_yaw(50,10,20);
+Control::PID pid_roll(1.85,0.020,0.42), pid_pitch(2.58,0.4,0.8), pid_altitude(250,150,50), pid_yaw(50,10,20);
+// pitch tuned values: (2.58,0.5,0.9), (2.58,0.4,0.8)
+// roll tuned values: (1.85,0.020,0.42)
 
 
 unsigned long t0 = 0;
@@ -94,8 +96,8 @@ void setup() {
   constexpr float altmax = 5.0f/3.6f; // top speed of ascent.
   rctoCommand.setAltitudeRateLimits(altmin, altmax);
 
-  pid_roll.setRange(-450,450);
-  pid_pitch.setRange(-450,450);
+  pid_roll.setRange(-300,300);
+  pid_pitch.setRange(-300,300);
   pid_altitude.setRange(-500,500);
   pid_yaw.setRange(-300,300);
 
@@ -153,7 +155,7 @@ void setup() {
 
 
 long t = 0;
-long Dtm = 1000/20; //10Hz update to motors.
+long Dtm = 1000/10; //10Hz update to motors.
 long tm = 0;
 
 
@@ -162,15 +164,15 @@ float rolld, rolls, pitchd, pitchs, yawd, yaws, altd, alts;
 unsigned int* ch;
 
 void loop() {
-  
-  t1=micros();
-  if(once)
+
+  if(millis()> tm+Dtm)
   {
-    once = false;
-    t0 = t1;
-  }
-  dt = dt * 0.999 + 0.001* (float)(t1 - t0)/1000000.0;
-  t0 = t1;
+
+  // 0) measure input voltage on A0
+  int analog_value = analogRead(A0);
+   float input_voltage = ((float)analog_value * 12.50f) / 1024.0;
+   Serial.print("Battery voltage= "); Serial.println(input_voltage); 
+  
 
   
 
@@ -210,6 +212,17 @@ void loop() {
   
 
   //4) compute integral, derivative, proportional errors:
+  t1=micros();
+  if(once)
+  {
+    once = false;
+    t0 = t1;
+  }
+  dt = dt * 0 + 1* (float)(t1 - t0)/1000000.0;
+  t0 = t1;
+  //pid_pitch.setPID(2.58,0.4,0.8);
+  //Serial.print("PIDTune= ");
+  //Serial.println(0.01*rctoCommand.getPIDTune(ch[4]),7);
   auto roll_pid = pid_roll.compensate(rolld, rolls, dt);
   auto pitch_pid = pid_pitch.compensate(pitchd, pitchs, dt);
   auto yaw_pid = pid_yaw.compensate(yawd, yaws, dt);
@@ -239,51 +252,50 @@ void loop() {
   {
     
     t = millis();
-    Serial.println("####################PPM output###################");
-    Serial.print(ch[0]);Serial.print("\t  ");
-    Serial.print(ch[1]);Serial.print("\t ");
-    Serial.print(ch[2]);Serial.print("\t ");
-    Serial.print(ch[3]);Serial.print("\t ");
-    Serial.print(ch[4]);Serial.print("\t ");
-    Serial.print(ch[5]);Serial.println("\t ");
-    Serial.println("####################RC to command output###################");
+//    Serial.println("####################PPM output###################");
+//    Serial.print(ch[0]);Serial.print("\t  ");
+//    Serial.print(ch[1]);Serial.print("\t ");
+//    Serial.print(ch[2]);Serial.print("\t ");
+//    Serial.print(ch[3]);Serial.print("\t ");
+//    Serial.print(ch[4]);Serial.print("\t ");
+//    Serial.print(ch[5]);Serial.println("\t ");
+//    Serial.println("####################RC to command output###################");
     Serial.print("dt= "); Serial.println(dt,10);
-    Serial.print(pitchd);Serial.print("\t");
-    Serial.print(rolld);Serial.print("\t");
-    Serial.print(yawd);Serial.print("\t");
-    Serial.println(altd);
-    Serial.println("####################Control output###################");
-    Serial.print(pitch_pid);Serial.print("\t");
-    Serial.print(roll_pid);Serial.print("\t");
-    Serial.print(yaw_pid);Serial.print("\t");
-    Serial.println(alt_pid);
-    Serial.print("Yaw= ");
-    Serial.println(yaws);
-    Serial.print("euler\t");
-//    Serial.print(euler[0] * 180/M_PI);
-//    Serial.print("\t");
-//    Serial.print(euler[1] * 180/M_PI);
-//    Serial.print("\t");
-//    Serial.println(euler[2] * 180/M_PI);
-    Serial.print("ypr\t");
-            Serial.print(ypr[0] * 180/M_PI);
-            Serial.print("\t");
-            Serial.print(ypr[1] * 180/M_PI);
-            Serial.print("\t");
-            Serial.println(ypr[2] * 180/M_PI);  
-    Serial.println("####################Motor Throttles###################");
-    
-    Serial.print(M1_throttle);Serial.print("\t");
-    Serial.print(M2_throttle);Serial.print("\t");
-    Serial.print(M3_throttle);Serial.print("\t");
-    Serial.println(M4_throttle);
+//    Serial.print(pitchd);Serial.print("\t");
+//    Serial.print(rolld);Serial.print("\t");
+//    Serial.print(yawd);Serial.print("\t");
+//    Serial.println(altd);
+//    Serial.println("####################Control output###################");
+//    Serial.print(pitch_pid);Serial.print("\t");
+//    Serial.print(roll_pid);Serial.print("\t");
+//    Serial.print(yaw_pid);Serial.print("\t");
+//    Serial.println(alt_pid);
+//    Serial.print("Yaw= ");
+//    Serial.println(yaws);
+//    Serial.print("euler\t");
+////    Serial.print(euler[0] * 180/M_PI);
+////    Serial.print("\t");
+////    Serial.print(euler[1] * 180/M_PI);
+////    Serial.print("\t");
+////    Serial.println(euler[2] * 180/M_PI);
+//    Serial.print("ypr\t");
+//            Serial.print(ypr[0] * 180/M_PI);
+//            Serial.print("\t");
+//            Serial.print(ypr[1] * 180/M_PI);
+//            Serial.print("\t");
+//            Serial.println(ypr[2] * 180/M_PI);  
+//    Serial.println("####################Motor Throttles###################");
+//    
+//    Serial.print(M1_throttle);Serial.print("\t");
+//    Serial.print(M2_throttle);Serial.print("\t");
+//    Serial.print(M3_throttle);Serial.print("\t");
+//    Serial.println(M4_throttle);
     
     
   }
 
   
-  if(millis()> tm+Dtm)
-  {
+  
     if(rctoCommand.urgentMotorKill(ch[5]))// channel 6 of RC kills motors when switch is below 1500.
     {
       
@@ -291,6 +303,10 @@ void loop() {
       s2.writeMicroseconds(000);
       s3.writeMicroseconds(000);
       s4.writeMicroseconds(000);
+      pid_pitch.resetIntegrator();
+      pid_roll.resetIntegrator();
+      pid_altitude.resetIntegrator();
+      pid_yaw.resetIntegrator();
     }
     else
     {
@@ -299,6 +315,14 @@ void loop() {
       s3.writeMicroseconds(M3_throttle);
       s4.writeMicroseconds(M4_throttle);
     
+    }
+    if(ch[3] =< 1050) // no thrusts 
+    {
+      pid_pitch.resetIntegrator();
+      pid_roll.resetIntegrator();
+      pid_altitude.resetIntegrator();
+      pid_yaw.resetIntegrator();
+
     }
     
     
