@@ -57,7 +57,7 @@ Sensors::HMC5883 compass;
 auto ppmReader = RC::PPMReader::getInstance();
 RC::RCtoCommand rctoCommand;
 Servo s1, s2, s3, s4;
-Control::PID pid_roll(1.85,0.020,0.42), pid_pitch(2.58,0.4,0.8), pid_altitude(250,150,50), pid_yaw(50,10,20);
+Control::PID pid_roll(1.85,0.020,0.42), pid_pitch(2.58,0.4,0.8), pid_altitude(0,0,0), pid_yaw(3,0.01,1);
 // pitch tuned values: (2.58,0.5,0.9), (2.58,0.4,0.8)
 // roll tuned values: (1.85,0.020,0.42)
 
@@ -148,6 +148,8 @@ void setup() {
   
   //compass.setup();
   compass.compute_offsets_scales();
+  pinMode(13, OUTPUT);
+  digitalWrite(13, LOW);
 
 }
 
@@ -172,6 +174,10 @@ void loop() {
   int analog_value = analogRead(A0);
    float input_voltage = ((float)analog_value * 12.50f) / 1024.0;
    Serial.print("Battery voltage= "); Serial.println(input_voltage); 
+   if (input_voltage <=10.5f) // indicate battery voltage low.
+   {
+     digitalWrite(13, HIGH);
+   }
   
 
   
@@ -190,6 +196,7 @@ void loop() {
      mpu.dmpGetGravity(&gravity, &q);
      //mpu.dmpGetEuler(euler, &q);
      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+     yaws = ypr[0] * 180/M_PI;
      pitchs = ypr[1]* 180/M_PI;
      rolls = ypr[2]* 180/M_PI;   
      
@@ -207,7 +214,7 @@ void loop() {
   // 3) convert RC channels to (desired roll & pitch &, motor throttle level, 
   pitchd = rctoCommand.getPitch(ch[1]);
   rolld  = rctoCommand.getRoll(ch[0]);
-  yawd   = rctoCommand.getYawRate(ch[3]);
+  yawd   = 0*rctoCommand.getYawRate(ch[3]); // for now let's keep yawd = 0.
   altd   = rctoCommand.getAltitudeRate(ch[2]);
   
 
