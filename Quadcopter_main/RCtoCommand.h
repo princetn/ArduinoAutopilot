@@ -50,6 +50,16 @@ class RCtoCommand
     /// @param  
     /// @return returns the mapped value from channel 1000-2000 to a smaller range.
     float getPIDTune(unsigned int v);
+    /// @brief Calibrates the Pitch stick
+    /// @param c center position of stick value
+    void calibratePitch(unsigned int c);
+    /// @brief Calibrate the roll stick
+    /// @param c center position of stick value.
+    void calibrateRoll(unsigned int c);
+    /// @brief 
+    /// @param c 
+    void calibrateYawRate(unsigned int c);
+
 
 
     
@@ -68,6 +78,12 @@ class RCtoCommand
     float _pitchLimits[2];
     float _rollLimits[2];
     float _altitudeRateLimits[2];
+    bool _pitchCalibrated;
+    unsigned int _pitchCenter;
+    bool _rollCalibrated;
+    unsigned int _rollCenter;
+    bool _yawCalibrated;
+    unsigned int _yawCenter;
 
 
 

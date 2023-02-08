@@ -1,11 +1,22 @@
-
-// PID controller for quadcopter
+// Author: Amir Gasmi <argasmi@gmail.com>
+// Date: Feb 7, 2023
+// Purpose: This is main Arduino entry point.
+// The code reads PPM signal from RC receiver.
+// Reads 10DOF sensor data.
+// PID control the quadcopter 4 thruster(motors) to
+// 1) keep the quadcopter follow the stick of RC radio for orientation (pitch, roll, yawRate, Elevation rate)
+// 2) stabilize the quadcopter (autoleveling and no yawing when sticks are in middle)
+// 3) keep at a fixed Altitude (To be added)
+// 4) use GPS waypoints to fly autonomously (To be added)
+// 5) Autonomous Take off (To be added)
+// 6) Autonomous landing (To be added)
 
 #include "PPMReader.h"
 #include <Servo.h>
 #include "PIDController.h"
 #include "RCtoCommand.h"
 #include "HMC5883.h"
+#include "MPU6050.h"
 
 
 
@@ -48,16 +59,17 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 
 
 
-
+float pitch_i, roll_i, yaw_i;
 
 
 // Sensors:
+Sensors::MPU6050 imu;
 Sensors::HMC5883 compass;
 
 auto ppmReader = RC::PPMReader::getInstance();
 RC::RCtoCommand rctoCommand;
 Servo s1, s2, s3, s4;
-Control::PID pid_roll(1.85,0.020,0.42), pid_pitch(2.58,0.4,0.8), pid_altitude(0,0,0), pid_yaw(3,0.01,1);
+Control::PID pid_roll(1.85,0.020,0.42), pid_pitch(2.58,0.4,0.8), pid_altitude(0,0,0), pid_yaw(1.5,0.01,0.3);
 // pitch tuned values: (2.58,0.5,0.9), (2.58,0.4,0.8)
 // roll tuned values: (1.85,0.020,0.42)
 
@@ -73,7 +85,7 @@ unsigned int M1_throttle=0, M2_throttle=0, M3_throttle=0, M4_throttle =0;
 
 
 
-
+unsigned int* ch;
 
 void setup() {
   // put your setup code here, to run once:
@@ -83,11 +95,36 @@ void setup() {
   s2.attach(M2);
   s3.attach(M3);
   s4.attach(M4);
+  // keep motors off initially.
   s1.writeMicroseconds(000);
   s2.writeMicroseconds(000);
   s3.writeMicroseconds(000);
   s4.writeMicroseconds(000);
-  
+  delay(200);
+
+  // stick calibration
+  unsigned long stickcal[3] ={0};
+  for(int i=0; i < 10; i++)
+  {
+    ch = ppmReader->read();
+    stickcal[0] += ch[0];
+    stickcal[1] += ch[1];
+    stickcal[2] += ch[3];
+    delay(200);
+
+
+  }
+  stickcal[0] /= 10;
+  stickcal[1] /= 10;
+  stickcal[2] /= 10;
+  Serial.print("Stick calibration values: ");
+  Serial.print(stickcal[0]); Serial.print("\t");
+  Serial.print(stickcal[1]); Serial.print("\t");
+  Serial.println(stickcal[2]);
+  rctoCommand.calibratePitch(stickcal[1]);
+  rctoCommand.calibrateRoll(stickcal[0]);
+  rctoCommand.calibrateYawRate(stickcal[2]);
+
 
   rctoCommand.setRollLimits(-10.0f, 10.0f); // limits roll range to -10/10deg
   rctoCommand.setPitchLimits(-10.0f, 10.0f); // limits pitch range to -10/10deg
@@ -100,6 +137,14 @@ void setup() {
   pid_pitch.setRange(-300,300);
   pid_altitude.setRange(-500,500);
   pid_yaw.setRange(-300,300);
+
+
+  imu.setup();
+  imu.readAccelData();
+  auto accpitch = imu.getPitch();
+  auto accroll = imu.getRoll();
+  Serial.print("Accel pitch&roll: ");
+  Serial.print(accpitch); Serial.print("\t"); Serial.println(accroll);
 
 
 
@@ -134,6 +179,20 @@ void setup() {
       mpuIntStatus = mpu.getIntStatus();
       dmpReady = true;
   }
+  delay(100);
+  if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { 
+     mpu.dmpGetQuaternion(&q, fifoBuffer);
+     mpu.dmpGetGravity(&gravity, &q);
+     //mpu.dmpGetEuler(euler, &q);
+     mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+     yaw_i = ypr[0] * 180/M_PI;
+     pitch_i = ypr[1]* 180/M_PI;
+     roll_i = ypr[2]* 180/M_PI;
+     pitch_i -= accpitch;
+     roll_i -= accroll;
+  }
+     
+       
 
 
 
@@ -163,7 +222,7 @@ long tm = 0;
 
 float rolld, rolls, pitchd, pitchs, yawd, yaws, altd, alts;
 
-unsigned int* ch;
+
 
 void loop() {
 
@@ -196,9 +255,9 @@ void loop() {
      mpu.dmpGetGravity(&gravity, &q);
      //mpu.dmpGetEuler(euler, &q);
      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-     yaws = ypr[0] * 180/M_PI;
-     pitchs = ypr[1]* 180/M_PI;
-     rolls = ypr[2]* 180/M_PI;   
+     yaws = ypr[0] * 180/M_PI - yaw_i;
+     pitchs = ypr[1]* 180/M_PI - pitch_i;
+     rolls = ypr[2]* 180/M_PI -roll_i;   
      
             
           
@@ -241,10 +300,10 @@ void loop() {
 
   // 5) apply result to current 4pwm throttle of 4 motors (4servo objs).
 
-  M2_throttle = ch[2] - pitch_pid + 0         + 0*(yaw_pid>0?yaw_pid:0);
-  M1_throttle = ch[2] + 0         + roll_pid  + 0*(yaw_pid<0?-yaw_pid:0)+100; // some problem with pwm? 100 offset.
-  M4_throttle = ch[2] + pitch_pid + 0         + 0*(yaw_pid<0?-yaw_pid:0);
-  M3_throttle = ch[2] + 0         - roll_pid + 0*(yaw_pid>0?yaw_pid:0)+100;
+  M2_throttle = ch[2] - pitch_pid + 0         + (yaw_pid>0?yaw_pid:0);
+  M1_throttle = ch[2] + 0         + roll_pid  + (yaw_pid<0?-yaw_pid:0)+100; // some problem with pwm? 100 offset.
+  M4_throttle = ch[2] + pitch_pid + 0         + (yaw_pid>0?yaw_pid:0);
+  M3_throttle = ch[2] + 0         - roll_pid  + (yaw_pid<0?-yaw_pid:0)+100;
 
   // clamp the throttles
   M1_throttle = M1_throttle>2000?2000:M1_throttle;
@@ -259,13 +318,13 @@ void loop() {
   {
     
     t = millis();
-//    Serial.println("####################PPM output###################");
-//    Serial.print(ch[0]);Serial.print("\t  ");
-//    Serial.print(ch[1]);Serial.print("\t ");
-//    Serial.print(ch[2]);Serial.print("\t ");
-//    Serial.print(ch[3]);Serial.print("\t ");
-//    Serial.print(ch[4]);Serial.print("\t ");
-//    Serial.print(ch[5]);Serial.println("\t ");
+    Serial.println("####################PPM output###################");
+    Serial.print(ch[0]);Serial.print("\t  ");
+    Serial.print(ch[1]);Serial.print("\t ");
+    Serial.print(ch[2]);Serial.print("\t ");
+    Serial.print(ch[3]);Serial.print("\t ");
+    Serial.print(ch[4]);Serial.print("\t ");
+    Serial.print(ch[5]);Serial.println("\t ");
 //    Serial.println("####################RC to command output###################");
     Serial.print("dt= "); Serial.println(dt,10);
 //    Serial.print(pitchd);Serial.print("\t");
@@ -285,12 +344,12 @@ void loop() {
 ////    Serial.print(euler[1] * 180/M_PI);
 ////    Serial.print("\t");
 ////    Serial.println(euler[2] * 180/M_PI);
-//    Serial.print("ypr\t");
-//            Serial.print(ypr[0] * 180/M_PI);
-//            Serial.print("\t");
-//            Serial.print(ypr[1] * 180/M_PI);
-//            Serial.print("\t");
-//            Serial.println(ypr[2] * 180/M_PI);  
+    Serial.print("ypr\t");
+            Serial.print(yaws);
+            Serial.print("\t");
+            Serial.print(pitchs);
+            Serial.print("\t");
+            Serial.println(rolls);  
 //    Serial.println("####################Motor Throttles###################");
 //    
 //    Serial.print(M1_throttle);Serial.print("\t");
@@ -303,7 +362,7 @@ void loop() {
 
   
   
-    if(rctoCommand.urgentMotorKill(ch[5]))// channel 6 of RC kills motors when switch is below 1500.
+    if(rctoCommand.urgentMotorKill(ch[5]) || (ch[2] <= 1050))// channel 6 of RC kills motors when switch is below 1500.
     {
       
       s1.writeMicroseconds(000);
@@ -323,14 +382,7 @@ void loop() {
       s4.writeMicroseconds(M4_throttle);
     
     }
-    if(ch[3] =< 1050) // no thrusts 
-    {
-      pid_pitch.resetIntegrator();
-      pid_roll.resetIntegrator();
-      pid_altitude.resetIntegrator();
-      pid_yaw.resetIntegrator();
-
-    }
+   
     
     
     tm =millis();
