@@ -69,9 +69,9 @@ Sensors::HMC5883 compass;
 auto ppmReader = RC::PPMReader::getInstance();
 RC::RCtoCommand rctoCommand;
 Servo s1, s2, s3, s4;
-Control::PID pid_roll(1.85,0.020,0.42), pid_pitch(2.58,0.4,0.8), pid_altitude(0,0,0), pid_yaw(1.5,0.01,0.3);
+Control::PID pid_roll(1.2, 0.128, 0.24), pid_pitch(1.34,0.3,0.51), pid_altitude(0,0,0), pid_yaw(1.3,0.01,0.1);
 // pitch tuned values: (2.58,0.5,0.9), (2.58,0.4,0.8)
-// roll tuned values: (1.85,0.020,0.42)
+// roll tuned values: (1.85,0.020,0.42) This is the proper tuned values (1.2, 0.128, 0.24)
 
 
 unsigned long t0 = 0;
@@ -103,27 +103,27 @@ void setup() {
   delay(200);
 
   // stick calibration
-  unsigned long stickcal[3] ={0};
-  for(int i=0; i < 10; i++)
-  {
-    ch = ppmReader->read();
-    stickcal[0] += ch[0];
-    stickcal[1] += ch[1];
-    stickcal[2] += ch[3];
-    delay(200);
-
-
-  }
-  stickcal[0] /= 10;
-  stickcal[1] /= 10;
-  stickcal[2] /= 10;
-  Serial.print("Stick calibration values: ");
-  Serial.print(stickcal[0]); Serial.print("\t");
-  Serial.print(stickcal[1]); Serial.print("\t");
-  Serial.println(stickcal[2]);
-  rctoCommand.calibratePitch(stickcal[1]);
-  rctoCommand.calibrateRoll(stickcal[0]);
-  rctoCommand.calibrateYawRate(stickcal[2]);
+//  unsigned long stickcal[3] ={0};
+//  for(int i=0; i < 10; i++)
+//  {
+//    ch = ppmReader->read();
+//    stickcal[0] += ch[0];
+//    stickcal[1] += ch[1];
+//    stickcal[2] += ch[3];
+//    delay(200);
+//
+//
+//  }
+//  stickcal[0] /= 10;
+//  stickcal[1] /= 10;
+//  stickcal[2] /= 10;
+//  Serial.print("Stick calibration values: ");
+//  Serial.print(stickcal[0]); Serial.print("\t");
+//  Serial.print(stickcal[1]); Serial.print("\t");
+//  Serial.println(stickcal[2]);
+//  rctoCommand.calibratePitch(stickcal[1]);
+//  rctoCommand.calibrateRoll(stickcal[0]);
+//  rctoCommand.calibrateYawRate(stickcal[2]);
 
 
   rctoCommand.setRollLimits(-10.0f, 10.0f); // limits roll range to -10/10deg
@@ -133,8 +133,8 @@ void setup() {
   constexpr float altmax = 5.0f/3.6f; // top speed of ascent.
   rctoCommand.setAltitudeRateLimits(altmin, altmax);
 
-  pid_roll.setRange(-300,300);
-  pid_pitch.setRange(-300,300);
+  pid_roll.setRange(-350,350);
+  pid_pitch.setRange(-350,350);
   pid_altitude.setRange(-500,500);
   pid_yaw.setRange(-300,300);
 
@@ -179,19 +179,41 @@ void setup() {
       mpuIntStatus = mpu.getIntStatus();
       dmpReady = true;
   }
-  delay(100);
-  if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { 
-     mpu.dmpGetQuaternion(&q, fifoBuffer);
-     mpu.dmpGetGravity(&gravity, &q);
-     //mpu.dmpGetEuler(euler, &q);
-     mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-     yaw_i = ypr[0] * 180/M_PI;
-     pitch_i = ypr[1]* 180/M_PI;
-     roll_i = ypr[2]* 180/M_PI;
-     pitch_i -= accpitch;
-     roll_i -= accroll;
+  
+  for(int jk = 0; jk< 10; jk++)
+  {
+    delay(100);
+    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { 
+       mpu.dmpGetQuaternion(&q, fifoBuffer);
+       mpu.dmpGetGravity(&gravity, &q);
+       //mpu.dmpGetEuler(euler, &q);
+       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+       yaw_i = ypr[0] * 180/M_PI;
+       pitch_i = ypr[1]* 180/M_PI;
+       roll_i = ypr[2]* 180/M_PI;
+       
+    }
   }
-     
+
+   pitch_i -= accpitch;
+   roll_i -= accroll;
+   
+   pinMode(13, OUTPUT);
+   bool s = false;
+
+   for(int k = 0; k< 10; k++)// blink arduino LED to show readiness.
+   {
+    s = !s;
+    if(s)
+    {
+      digitalWrite(13, HIGH);
+    }
+    else
+    {
+      digitalWrite(13,LOW);
+    }
+    delay(500);
+   }
        
 
 
@@ -207,7 +229,7 @@ void setup() {
   
   //compass.setup();
   compass.compute_offsets_scales();
-  pinMode(13, OUTPUT);
+  
   digitalWrite(13, LOW);
 
 }
@@ -232,10 +254,14 @@ void loop() {
   // 0) measure input voltage on A0
   int analog_value = analogRead(A0);
    float input_voltage = ((float)analog_value * 12.50f) / 1024.0;
-   Serial.print("Battery voltage= "); Serial.println(input_voltage); 
-   if (input_voltage <=10.5f) // indicate battery voltage low.
+//   Serial.print("Battery voltage= "); Serial.println(input_voltage); 
+   if (input_voltage <=11.0f) // indicate battery voltage low.
    {
      digitalWrite(13, HIGH);
+   }
+   else
+   {
+    digitalWrite(13, LOW);
    }
   
 
@@ -286,9 +312,11 @@ void loop() {
   }
   dt = dt * 0 + 1* (float)(t1 - t0)/1000000.0;
   t0 = t1;
-  //pid_pitch.setPID(2.58,0.4,0.8);
+  // roll (1.2, 0.128, 0.24)
+  // pitch (1.34,0.3,0.51)
+  //pid_pitch.setPID(1.34, 0.01*rctoCommand.getPIDTune(ch[4]), 0.02*rctoCommand.getPIDTune(ch[5]));
   //Serial.print("PIDTune= ");
-  //Serial.println(0.01*rctoCommand.getPIDTune(ch[4]),7);
+  //Serial.print(0.01*rctoCommand.getPIDTune(ch[4]),7);Serial.print("\t"); Serial.println(0.02*rctoCommand.getPIDTune(ch[5]),7);
   auto roll_pid = pid_roll.compensate(rolld, rolls, dt);
   auto pitch_pid = pid_pitch.compensate(pitchd, pitchs, dt);
   auto yaw_pid = pid_yaw.compensate(yawd, yaws, dt);
@@ -304,6 +332,7 @@ void loop() {
   M1_throttle = ch[2] + 0         + roll_pid  + (yaw_pid<0?-yaw_pid:0)+100; // some problem with pwm? 100 offset.
   M4_throttle = ch[2] + pitch_pid + 0         + (yaw_pid>0?yaw_pid:0);
   M3_throttle = ch[2] + 0         - roll_pid  + (yaw_pid<0?-yaw_pid:0)+100;
+//  M1_throttle = 0; M3_throttle = 0;
 
   // clamp the throttles
   M1_throttle = M1_throttle>2000?2000:M1_throttle;
@@ -314,19 +343,21 @@ void loop() {
   M3_throttle = M3_throttle<1000?1000:M3_throttle;
   M4_throttle = M4_throttle>2000?2000:M4_throttle;
   M4_throttle = M4_throttle<1000?1000:M4_throttle;
-  if(millis()> t + 1000)
+  
+  
+  if(millis()> t + 1000) // this is for debugging to check the data.
   {
     
     t = millis();
-    Serial.println("####################PPM output###################");
-    Serial.print(ch[0]);Serial.print("\t  ");
-    Serial.print(ch[1]);Serial.print("\t ");
-    Serial.print(ch[2]);Serial.print("\t ");
-    Serial.print(ch[3]);Serial.print("\t ");
-    Serial.print(ch[4]);Serial.print("\t ");
-    Serial.print(ch[5]);Serial.println("\t ");
+//    Serial.println("####################PPM output###################");
+//    Serial.print(ch[0]);Serial.print("\t  ");
+//    Serial.print(ch[1]);Serial.print("\t ");
+//    Serial.print(ch[2]);Serial.print("\t ");
+//    Serial.print(ch[3]);Serial.print("\t ");
+//    Serial.print(ch[4]);Serial.print("\t ");
+//    Serial.print(ch[5]);Serial.println("\t ");
 //    Serial.println("####################RC to command output###################");
-    Serial.print("dt= "); Serial.println(dt,10);
+//    Serial.print("dt= "); Serial.println(dt,10);
 //    Serial.print(pitchd);Serial.print("\t");
 //    Serial.print(rolld);Serial.print("\t");
 //    Serial.print(yawd);Serial.print("\t");
@@ -344,12 +375,12 @@ void loop() {
 ////    Serial.print(euler[1] * 180/M_PI);
 ////    Serial.print("\t");
 ////    Serial.println(euler[2] * 180/M_PI);
-    Serial.print("ypr\t");
-            Serial.print(yaws);
-            Serial.print("\t");
-            Serial.print(pitchs);
-            Serial.print("\t");
-            Serial.println(rolls);  
+//    Serial.print("ypr\t");
+//            Serial.print(yaws);
+//            Serial.print("\t");
+//            Serial.print(pitchs);
+//            Serial.print("\t");
+//            Serial.println(rolls);  
 //    Serial.println("####################Motor Throttles###################");
 //    
 //    Serial.print(M1_throttle);Serial.print("\t");
