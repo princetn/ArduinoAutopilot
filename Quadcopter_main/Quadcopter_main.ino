@@ -69,7 +69,7 @@ Sensors::HMC5883 compass;
 auto ppmReader = RC::PPMReader::getInstance();
 RC::RCtoCommand rctoCommand;
 Servo s1, s2, s3, s4;
-Control::PID pid_roll(1.2, 0.128, 0.24), pid_pitch(1.34,0.3,0.51), pid_altitude(0,0,0), pid_yaw(1.3,0.01,0.1);
+Control::PID pid_roll(1.2, 0.128, 0.24), pid_pitch(1.34*0.85,0.3*0.85,0.51), pid_altitude(0,0,0), pid_yaw(1.3,0.01,0.1);
 // pitch tuned values: (2.58,0.5,0.9), (2.58,0.4,0.8)
 // roll tuned values: (1.85,0.020,0.42) This is the proper tuned values (1.2, 0.128, 0.24)
 

@@ -7,9 +7,9 @@ The autopilot will be limited to a single Arduino board.
 - HW-290 or GY-87 10DOF sensor (MPU6050 (gyro +accel), BMP085, HMC5883L(GY-87) or QMC5883L(HW-290))
 - GPS module Neo-6M
 ## Functionality
-- Provide Auto-leveling (stabilize the quadcopter so pitch and roll stay constant without any pilot input).
-- Maintain Altitude.
-- Follow preprogrammed waypoints.
+- Provide Auto-leveling (stabilize the quadcopter so pitch and roll stay constant and horizontal without any pilot input).
+- Maintain Altitude. (not implemented yet)
+- Follow preprogrammed waypoints. (not implemented yet)
 
 ## PID Control Tuning
 Lesson learned:
