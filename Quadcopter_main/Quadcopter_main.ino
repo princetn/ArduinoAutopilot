@@ -1,3 +1,4 @@
+
 // Author: Amir Gasmi <argasmi@gmail.com>
 // Date: Feb 7, 2023
 // Purpose: This is main Arduino entry point.
@@ -15,8 +16,8 @@
 #include <Servo.h>
 #include "PIDController.h"
 #include "RCtoCommand.h"
-#include "HMC5883.h"
-#include "MPU6050.h"
+#include "HMC5883.h" // lib for compass
+#include "MPU6050.h" // lib for MPU6050 gyro/accelerometer.
 
 
 // this is just a comment to test git.
@@ -25,6 +26,11 @@
 #define M3 9
 #define M4 10
 
+// x configuration quad.
+// M3 & M4 + pitch 
+// M1 & M2 - pitch 
+// M1 & M4 + roll
+// M2 & M3 - roll
 
 #include "I2Cdev.h"
 
@@ -86,6 +92,7 @@ unsigned int M1_throttle=0, M2_throttle=0, M3_throttle=0, M4_throttle =0;
 
 
 unsigned int* ch;
+float accpitch, accroll;
 
 void setup() {
   // put your setup code here, to run once:
@@ -96,10 +103,10 @@ void setup() {
   s3.attach(M3);
   s4.attach(M4);
   // keep motors off initially.
-  s1.writeMicroseconds(000);
-  s2.writeMicroseconds(000);
-  s3.writeMicroseconds(000);
-  s4.writeMicroseconds(000);
+  s1.writeMicroseconds(1000);
+  s2.writeMicroseconds(1000);
+  s3.writeMicroseconds(1000);
+  s4.writeMicroseconds(1000);
   delay(200);
 
   // stick calibration
@@ -141,8 +148,8 @@ void setup() {
 
   imu.setup();
   imu.readAccelData();
-  auto accpitch = imu.getPitch();
-  auto accroll = imu.getRoll();
+  accpitch = imu.getPitch();
+  accroll = imu.getRoll();
   Serial.print("Accel pitch&roll: ");
   Serial.print(accpitch); Serial.print("\t"); Serial.println(accroll);
 
@@ -191,6 +198,11 @@ void setup() {
        yaw_i = ypr[0] * 180/M_PI;
        pitch_i = ypr[1]* 180/M_PI;
        roll_i = ypr[2]* 180/M_PI;
+      // for yaw we will use only the compass.
+      compass.readRawData();
+      compass.calibrateData();
+      compass.processData();
+      yaw_i = compass.getYaw(); // we don't care where it was oriented is the 0 yaw for us.
        
     }
   }
@@ -237,12 +249,48 @@ void setup() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=
+//                                                                                      |
+//                  The loop                                                            |
+//                                                                                      |
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++=|
+
+
+
+
+
+
+
+
+
+
+
+  float roll_pid, pitch_pid, yaw_pid, alt_pid;
+  
+
+const float loop_frequency = 200.0; // 100Hz;
+
+
 long t = 0;
-long Dtm = 1000/10; //10Hz update to motors.
+long Dtm = 1000/loop_frequency; //40Hz update to motors.
 long tm = 0;
 
 
 float rolld, rolls, pitchd, pitchs, yawd, yaws, altd, alts;
+
 
 
 
@@ -253,7 +301,7 @@ void loop() {
 
   // 0) measure input voltage on A0
   int analog_value = analogRead(A0);
-   float input_voltage = ((float)analog_value * 12.50f) / 1024.0;
+   float input_voltage = ((float)analog_value * 12.50f) / 1024.0 ;
 //   Serial.print("Battery voltage= "); Serial.println(input_voltage); 
    if (input_voltage <=11.0f) // indicate battery voltage low.
    {
@@ -310,29 +358,33 @@ void loop() {
     once = false;
     t0 = t1;
   }
-  dt = dt * 0 + 1* (float)(t1 - t0)/1000000.0;
+  dt = (float)(t1 - t0)/1000000.0;
   t0 = t1;
   // roll (1.2, 0.128, 0.24)
   // pitch (1.34,0.3,0.51)
   //pid_pitch.setPID(1.34, 0.01*rctoCommand.getPIDTune(ch[4]), 0.02*rctoCommand.getPIDTune(ch[5]));
   //Serial.print("PIDTune= ");
   //Serial.print(0.01*rctoCommand.getPIDTune(ch[4]),7);Serial.print("\t"); Serial.println(0.02*rctoCommand.getPIDTune(ch[5]),7);
-  auto roll_pid = pid_roll.compensate(rolld, rolls, dt);
-  auto pitch_pid = pid_pitch.compensate(pitchd, pitchs, dt);
-  auto yaw_pid = pid_yaw.compensate(yawd, yaws, dt);
-  auto alt_pid = pid_altitude.compensate(altd, alts, dt);
+  roll_pid = pid_roll.compensate(rolld, rolls, dt);
+  pitch_pid = pid_pitch.compensate(pitchd, pitchs, dt);
+  yaw_pid = pid_yaw.compensate(yawd, yaws, dt);
+  alt_pid = pid_altitude.compensate(altd, alts, dt);
 
   
 
-  
+  // x configuration quad.
+// M3 & M4 + pitch 
+// M1 & M2 - pitch 
+// M1 & M4 + roll
+// M2 & M3 - roll
 
   // 5) apply result to current 4pwm throttle of 4 motors (4servo objs).
 
-  M2_throttle = ch[2] - pitch_pid + 0         + (yaw_pid>0?yaw_pid:0);
-  M1_throttle = ch[2] + 0         + roll_pid  + (yaw_pid<0?-yaw_pid:0)+100; // some problem with pwm? 100 offset.
-  M4_throttle = ch[2] + pitch_pid + 0         + (yaw_pid>0?yaw_pid:0);
-  M3_throttle = ch[2] + 0         - roll_pid  + (yaw_pid<0?-yaw_pid:0)+100;
-//  M1_throttle = 0; M3_throttle = 0;
+  M2_throttle = ch[2] - pitch_pid - roll_pid  + (yaw_pid>0?yaw_pid:0);
+  M1_throttle = ch[2] - pitch_pid + roll_pid  + (yaw_pid<0?-yaw_pid:0); 
+  M4_throttle = ch[2] + pitch_pid + roll_pid  + (yaw_pid>0?yaw_pid:0);
+  M3_throttle = ch[2] + pitch_pid - roll_pid  + (yaw_pid<0?-yaw_pid:0);
+
 
   // clamp the throttles
   M1_throttle = M1_throttle>2000?2000:M1_throttle;
@@ -345,10 +397,10 @@ void loop() {
   M4_throttle = M4_throttle<1000?1000:M4_throttle;
   
   
-  if(millis()> t + 1000) // this is for debugging to check the data.
-  {
-    
-    t = millis();
+//  if(millis()> t + 1000) // this is for debugging to check the data.
+//  {
+//    
+//    t = millis();
 //    Serial.println("####################PPM output###################");
 //    Serial.print(ch[0]);Serial.print("\t  ");
 //    Serial.print(ch[1]);Serial.print("\t ");
@@ -387,19 +439,29 @@ void loop() {
 //    Serial.print(M2_throttle);Serial.print("\t");
 //    Serial.print(M3_throttle);Serial.print("\t");
 //    Serial.println(M4_throttle);
+
+
+//   Serial.println(" ################### Sensor measured Angles  ###################");
+//    Serial.print("roll: "); Serial.println( rolls);
+//    Serial.print("pitch: "); Serial.println(pitchs);
+//    Serial.print("Accel. roll: "); Serial.println( accroll);
+//    Serial.print("Accel. pitch: "); Serial.println(accpitch);
+//    Serial.print("1/Delta t = "); Serial.println(1/dt);
+
+      //Serial.print("Battery voltage: "); Serial.println(input_voltage);
     
     
-  }
+//  }
 
   
   
     if(rctoCommand.urgentMotorKill(ch[5]) || (ch[2] <= 1050))// channel 6 of RC kills motors when switch is below 1500.
     {
       
-      s1.writeMicroseconds(000);
-      s2.writeMicroseconds(000);
-      s3.writeMicroseconds(000);
-      s4.writeMicroseconds(000);
+      s1.writeMicroseconds(1000);
+      s2.writeMicroseconds(1000);
+      s3.writeMicroseconds(1000);
+      s4.writeMicroseconds(1000);
       pid_pitch.resetIntegrator();
       pid_roll.resetIntegrator();
       pid_altitude.resetIntegrator();
